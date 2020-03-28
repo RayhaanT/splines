@@ -10,6 +10,7 @@
 #include <GLFW/stb_image.h>
 #include <vector>
 #include <Eigen/Dense>
+#include <cmath>
 ///VBOs Vertex Buffer Objects contain vertex data that is sent to memory in the GPU, vertex attrib calls config bound VBO
 ///VAOs Vertex Array Objects when bound, any vertex attribute calls and attribute configs are stored in VAO
 ///Having multiple VAOs allow storage of multiple VBO configs, before drawing, binding VAO with right config applies to draw
@@ -49,37 +50,78 @@ double zoomScaleFactor = 1;
 const float zoomStep = 0.05f;
 
 std::vector<glm::vec2> controlPoints = {glm::vec2(0.0f, 0.0f), glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), glm::vec2(-1.0f, -1.0f)};
+Eigen::Vector4d coefficients(0, 1, 1, 1);
+GLuint splineVBO;
+GLuint splineVAO;
+GLuint pointsVBO;
+GLuint pointsVAO;
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
 }
 
-void mouse_callback(GLFWwindow *window, double xpos, double ypos)
-{
-	if (firstMouse)
-	{
-		lastX = xpos;
-		lastY = ypos;
-		firstMouse = false;
-	}
-
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos;
-	lastX = xpos;
-	lastY = ypos;
-}
-
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 	if(yoffset > 0) {
 		zoom = glm::scale(zoom, glm::vec3(1.0f + zoomStep));
-		zoomScaleFactor += zoomStep;
+		zoomScaleFactor *= (1 + zoomStep);
 	}
 	else {
 		zoom = glm::scale(zoom, glm::vec3(1.0f - zoomStep));
-		zoomScaleFactor -= zoomStep;
+		zoomScaleFactor *= (1 - zoomStep);
 	}
 }
+
+void generatePoints() {
+	std::vector<float> splinePoints;
+	for (float x = -20; x <= 20; x += 0.1) {
+		splinePoints.push_back(x);
+		float y = x * x * x * coefficients[3];
+		y += x * x * coefficients[2];
+		y += x * coefficients[1];
+		y += coefficients[0];
+		splinePoints.push_back(y);
+		splinePoints.push_back(0.0f);
+	}
+
+	std::vector<float> controlFloats;
+	for(glm::vec2 v : controlPoints) {
+		controlFloats.push_back(v.x);
+		controlFloats.push_back(v.y);
+		controlFloats.push_back(0.0f);
+	}
+
+	glBindVertexArray(splineVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
+	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
+
+	glBindVertexArray(pointsVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, pointsVAO);
+	glBufferData(GL_ARRAY_BUFFER, controlFloats.size() * sizeof(GLfloat), controlFloats.data(), GL_STATIC_DRAW);
+}
+
+void calculateCubic(std::vector<glm::vec2> points) {
+	Eigen::MatrixXd mat(4, 4);
+	Eigen::Vector4d y;
+	y(0) = points[0].y;
+	y(1) = points[1].y;
+	y(2) = points[2].y;
+	y(2) = points[2].y;
+	for(int i = 0; i < 4; i++) {
+		float a = pow(points[i].x, 3);
+		float b = pow(points[i].x, 2);
+		float c = points[i].x;
+		mat(i, 0) = 1;
+		mat(i, 1) = c;
+		mat(i, 2) = b;
+		mat(i, 3) = a;
+	}
+
+	std::cout << mat << std::endl;
+
+	coefficients = mat.inverse() * y;
+}
+
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT)
@@ -91,8 +133,13 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			xpos -= dimension/2;
 			ypos -= dimension/2;
 			ypos = -ypos;
-			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)zoomScaleFactor);
+			xpos /= dimension;
+			ypos /= dimension;
+			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)(1.0f/zoomScaleFactor) * 2.0f);
 			controlPoints.erase(controlPoints.begin());
+			controlPoints = {glm::vec2(-3, 5), glm::vec2(1, 3), glm::vec2(2, -5 ), glm::vec2(2.1, 3)};
+			calculateCubic(controlPoints);
+			generatePoints();
 		}
 	}
 }
@@ -148,21 +195,36 @@ int main()
 	glEnableVertexAttribArray(0);
 
 	//Create a Vertex Array Object
-	unsigned int splineVAO;
 	glGenVertexArrays(1, &splineVAO);
 	glBindVertexArray(splineVAO);
 
 	std::vector<float> splinePoints;
-	for (float x = -3; x <= 3; x += 0.1) {
+	for (float x = -20; x <= 20; x += 0.1) {
 		splinePoints.push_back(x);
 		splinePoints.push_back(x * x * x);
 		splinePoints.push_back(0.0f);
 	}
 	
-	unsigned int splineVBO;
 	glGenBuffers(1, &splineVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
-	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+	glEnableVertexAttribArray(0);
+
+	glGenVertexArrays(1, &pointsVAO);
+	glBindVertexArray(pointsVAO);
+
+	std::vector<float> controlFloats;
+	for(int i = 0; i < controlPoints.size(); i++) {
+		controlFloats.push_back(controlPoints[i].x);
+		controlFloats.push_back(controlPoints[i].y);
+		controlFloats.push_back(0.0f);
+	}
+
+	glGenBuffers(1, &pointsVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
+	glBufferData(GL_ARRAY_BUFFER, controlFloats.size() * sizeof(GLfloat), controlFloats.data(), GL_STATIC_DRAW);
 
 	//Configure vertex data so readable by vertex shader
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
@@ -180,10 +242,9 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	//Set mouse input callback function
 	void mouse_callback(GLFWwindow * window, double xpos, double ypos);
-	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glPointSize(5);
+	glPointSize(8);
 	glLineWidth(3);
 
 	//Render Loop
@@ -209,13 +270,17 @@ int main()
 
 		int splineDataSize = splinePoints.size()/3;
 
+
 		glBindVertexArray(splineVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
 		glDrawArrays(GL_LINE_STRIP, 0, splineDataSize);
 		// glDrawArrays(GL_POINTS, 0, splineDataSize);
 
+		glBindVertexArray(pointsVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
+		glDrawArrays(GL_POINTS, 0, controlPoints.size());
+
 		glBindVertexArray(VAO);
-		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
 
 		glUseProgram(backgroundShader);
 
@@ -231,7 +296,7 @@ int main()
 
 		// Draw cube
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
+		//glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);
