@@ -9,6 +9,7 @@
 #define ARRAY_SIZE(array) (sizeof((array)) / sizeof((array[0])))
 #include <GLFW/stb_image.h>
 #include <vector>
+#include <Eigen/Dense>
 ///VBOs Vertex Buffer Objects contain vertex data that is sent to memory in the GPU, vertex attrib calls config bound VBO
 ///VAOs Vertex Array Objects when bound, any vertex attribute calls and attribute configs are stored in VAO
 ///Having multiple VAOs allow storage of multiple VBO configs, before drawing, binding VAO with right config applies to draw
@@ -44,7 +45,10 @@ float fov = 45.0f;
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 glm::mat4 zoom;
+double zoomScaleFactor = 1;
 const float zoomStep = 0.05f;
+
+std::vector<glm::vec2> controlPoints = {glm::vec2(0.0f, 0.0f), glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), glm::vec2(-1.0f, -1.0f)};
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
@@ -65,12 +69,31 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 	lastX = xpos;
 	lastY = ypos;
 }
+
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 	if(yoffset > 0) {
 		zoom = glm::scale(zoom, glm::vec3(1.0f + zoomStep));
+		zoomScaleFactor += zoomStep;
 	}
 	else {
 		zoom = glm::scale(zoom, glm::vec3(1.0f - zoomStep));
+		zoomScaleFactor -= zoomStep;
+	}
+}
+
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+	if (button == GLFW_MOUSE_BUTTON_LEFT)
+	{
+		if (action == GLFW_PRESS)
+		{
+			double xpos, ypos;
+			glfwGetCursorPos(window, &xpos, &ypos);
+			xpos -= dimension/2;
+			ypos -= dimension/2;
+			ypos = -ypos;
+			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)zoomScaleFactor);
+			controlPoints.erase(controlPoints.begin());
+		}
 	}
 }
 
@@ -159,6 +182,7 @@ int main()
 	void mouse_callback(GLFWwindow * window, double xpos, double ypos);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glPointSize(5);
 	glLineWidth(3);
 
