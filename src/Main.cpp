@@ -35,6 +35,7 @@ float lastFrame = 0.0f;
 bool restrictY = true;
 
 const float dimension = 800;
+const float range = 20;
 
 //Define offset variables
 float lastX = dimension / 2;
@@ -74,7 +75,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 
 void generatePoints() {
 	std::vector<float> splinePoints;
-	for (float x = -20; x <= 20; x += 0.1) {
+	for (float x = -range; x <= range; x += 0.1) {
 		splinePoints.push_back(x);
 		float y = x * x * x * coefficients[3];
 		y += x * x * coefficients[2];
@@ -117,8 +118,6 @@ void calculateCubic(std::vector<glm::vec2> points) {
 		mat(i, 3) = a;
 	}
 
-	std::cout << mat << std::endl;
-
 	coefficients = mat.inverse() * y;
 }
 
@@ -137,7 +136,7 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			ypos /= dimension;
 			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)(1.0f/zoomScaleFactor) * 2.0f);
 			controlPoints.erase(controlPoints.begin());
-			controlPoints = {glm::vec2(-3, 5), glm::vec2(1, 3), glm::vec2(2, -5 ), glm::vec2(2.1, 3)};
+			// controlPoints = {glm::vec2(-3, 5), glm::vec2(1, 3), glm::vec2(2, -5 ), glm::vec2(2.1, 3)};
 			calculateCubic(controlPoints);
 			generatePoints();
 		}
@@ -175,13 +174,13 @@ int main()
 	glBindVertexArray(VAO);
 
 	float vertices[]{
-		//Vertices        
-		1, 1, 0.0f,
-		1, -1, 0.0f, 
-		-1, -1, 0.0f,
-		-1, 1, 0.0f, 
-		1, 1, 0.0f, 
-		-1, -1, 0.0f
+		//Vertices
+		range, range, 0.0f,
+		range, -range, 0.0f,
+		-range, -range, 0.0f,
+		-range, range, 0.0f,
+		range, range, 0.0f,
+		-range, -range, 0.0f
 	};
 
 	//Create a Vertex Buffer Object
@@ -199,7 +198,7 @@ int main()
 	glBindVertexArray(splineVAO);
 
 	std::vector<float> splinePoints;
-	for (float x = -20; x <= 20; x += 0.1) {
+	for (float x = -range; x <= range; x += 0.1) {
 		splinePoints.push_back(x);
 		splinePoints.push_back(x * x * x);
 		splinePoints.push_back(0.0f);
@@ -261,29 +260,6 @@ int main()
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glUseProgram(splineShader);
-
-		glm::mat4 model;
-		//Pass matrices to the shader through a uniform
-		setMat4(splineShader, "model", zoom);
-		setVec3(splineShader, "colour", glm::vec3(1.0f));
-
-		int splineDataSize = splinePoints.size()/3;
-
-
-		glBindVertexArray(splineVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
-		glDrawArrays(GL_LINE_STRIP, 0, splineDataSize);
-		// glDrawArrays(GL_POINTS, 0, splineDataSize);
-
-		glBindVertexArray(pointsVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
-		glDrawArrays(GL_POINTS, 0, controlPoints.size());
-
-		glBindVertexArray(VAO);
-
-		glUseProgram(backgroundShader);
-
 		//Change colour over time
 		lightColour.x = sin(glfwGetTime() * 2.0f);
 		lightColour.y = sin(glfwGetTime() * 0.7f);
@@ -291,12 +267,34 @@ int main()
 
 		glm::vec3 ambientColour = lightColour * glm::vec3(0.5f);
 
-		setVec3(backgroundShader, "colour", ambientColour);
-		setMat4(backgroundShader, "model", glm::mat4());
+		glUseProgram(splineShader);
+
+		glm::mat4 model;
+		//Pass matrices to the shader through a uniform
+		setMat4(splineShader, "model", zoom);
+
+		setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
+		glBindVertexArray(pointsVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
+		glDrawArrays(GL_POINTS, 0, controlPoints.size());
+
+		setVec3(splineShader, "colour", glm::vec3(1.0f));
+		int splineDataSize = splinePoints.size()/3;
+		glBindVertexArray(splineVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
+		glDrawArrays(GL_LINE_STRIP, 0, splineDataSize);
+		// glDrawArrays(GL_POINTS, 0, splineDataSize);
+
+		glBindVertexArray(VAO);
+
+		glUseProgram(backgroundShader);
+
+		setVec3(backgroundShader, "colour", glm::vec3(0.2f));
+		setMat4(backgroundShader, "model", zoom);
 
 		// Draw cube
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		//glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
+		glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);
