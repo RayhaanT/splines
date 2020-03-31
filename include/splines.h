@@ -38,3 +38,4 @@ extern GLuint pointsVAO;
 
 void calculateCubic(std::vector<glm::vec2> points);
 void generatePointsCubic();
+void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope);

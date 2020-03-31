@@ -49,6 +49,8 @@ glm::mat4 zoom;
 double zoomScaleFactor = 1;
 const float zoomStep = 0.05f;
 
+bool firstPoint = true;
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
@@ -70,6 +72,10 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 	{
 		if (action == GLFW_PRESS)
 		{
+			if(firstPoint) {
+				firstPoint = false;
+				controlPoints = std::vector<glm::vec2>();
+			}
 			double xpos, ypos;
 			glfwGetCursorPos(window, &xpos, &ypos);
 			xpos -= dimension/2;
@@ -78,9 +84,10 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			xpos /= dimension;
 			ypos /= dimension;
 			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)(1.0f/zoomScaleFactor) * 2.0f);
-			controlPoints.erase(controlPoints.begin());
+			// controlPoints.erase(controlPoints.begin());
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
-			calculateCubic(controlPoints);
+			// calculateCubic(controlPoints);
+			calculateCubicStitched(controlPoints, 0, 0);
 			generatePointsCubic();
 		}
 	}

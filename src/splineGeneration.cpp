@@ -1,6 +1,7 @@
 #include "splines.h"
 #include "Eigen/Core"
 #include <iostream>
+#include <algorithm>
 
 using namespace Eigen;
 
@@ -33,8 +34,13 @@ void calculateCubic(std::vector<glm::vec2> points)
     cubicSpline = {c};
 }
 
+bool xValueSort(glm::vec2 a, glm::vec2 b) {
+    return a.x < b.x;
+}
+
 // Non-paramaterized, non-localized
 void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope) {
+    std::sort(points.begin(), points.end(), xValueSort);
     int numVar = (points.size()-1)*4;
     MatrixXd mat(numVar, numVar);
     VectorXd y(numVar);
@@ -93,13 +99,15 @@ void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, flo
         }
         else {
             //End slope: b + cx + 2dx^2 = s
-            mat(matIndex, secondOffset + 1) = 1;
-            mat(matIndex, secondOffset + 2) = x1;
-            mat(matIndex, secondOffset + 3) = 2 * x1 * x1;
+            mat(matIndex, matOffset + 1) = 1;
+            mat(matIndex, matOffset + 2) = x1;
+            mat(matIndex, matOffset + 3) = 2 * x1 * x1;
             y(matIndex) = endSlope;
             matIndex++;
         }
     }
+
+    cubicSpline.clear();
 
     VectorXd coefficients = mat.inverse() * y;
     for(int i = 0; i < points.size() - 1; i++) {
