@@ -12,9 +12,23 @@ struct ControlPoint {
     float x, y, angle;
 };
 
+struct CubicSplineSegment {
+    float a, b, c, d;
+    float lowerBound;
+    float upperBound;
+
+    CubicSplineSegment(const Eigen::Vector4d &v) {
+        a = v[0];
+        b = v[1];
+        c = v[2];
+        d = v[3];
+    }
+};
+
 // Spline data
 extern std::vector<glm::vec2> controlPoints;
-extern Eigen::Vector4d coefficients;
+extern std::vector<CubicSplineSegment> cubicSpline;
+extern float numberOfPoints;
 
 // GL containers
 extern GLuint splineVBO;

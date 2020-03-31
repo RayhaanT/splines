@@ -34,6 +34,7 @@ float lastFrame = 0.0f;
 bool restrictY = true;
 
 const float dimension = 800;
+float numberOfPoints;
 
 //Define offset variables
 float lastX = dimension / 2;
@@ -78,7 +79,7 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			ypos /= dimension;
 			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)(1.0f/zoomScaleFactor) * 2.0f);
 			controlPoints.erase(controlPoints.begin());
-			// controlPoints = {glm::vec2(-3, 5), glm::vec2(1, 3), glm::vec2(2, -5 ), glm::vec2(2.1, 3)};
+			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			calculateCubic(controlPoints);
 			generatePointsCubic();
 		}
@@ -151,6 +152,7 @@ int main()
 	glGenBuffers(1, &splineVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
 	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
+	numberOfPoints = splinePoints.size() / 3;
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
 	glEnableVertexAttribArray(0);
@@ -223,11 +225,10 @@ int main()
 		glDrawArrays(GL_POINTS, 0, controlPoints.size());
 
 		setVec3(splineShader, "colour", glm::vec3(1.0f));
-		int splineDataSize = splinePoints.size()/3;
 		glBindVertexArray(splineVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
-		glDrawArrays(GL_LINE_STRIP, 0, splineDataSize);
-		// glDrawArrays(GL_POINTS, 0, splineDataSize);
+		glDrawArrays(GL_LINE_STRIP, 0, numberOfPoints);
+		// glDrawArrays(GL_POINTS, 0, numberOfPoints);
 
 		glBindVertexArray(VAO);
 

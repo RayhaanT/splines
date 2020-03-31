@@ -9,15 +9,16 @@ GLuint pointsVAO;
 
 void generatePointsCubic() {
     std::vector<float> splinePoints;
-    for (float x = -RANGE; x <= RANGE; x += 0.1)
-    {
-        splinePoints.push_back(x);
-        float y = x * x * x * coefficients[3];
-        y += x * x * coefficients[2];
-        y += x * coefficients[1];
-        y += coefficients[0];
-        splinePoints.push_back(y);
-        splinePoints.push_back(0.0f);
+    for(CubicSplineSegment s : cubicSpline) {
+        for(float x = s.lowerBound; x < s.upperBound; x+=0.01) {
+            splinePoints.push_back(x);
+            float y = x * x * x * s.d;
+            y += x * x * s.c;
+            y += x * s.b;
+            y += s.a;
+            splinePoints.push_back(y);
+            splinePoints.push_back(0.0f);
+        }
     }
 
     std::vector<float> controlFloats;
@@ -31,6 +32,7 @@ void generatePointsCubic() {
     glBindVertexArray(splineVAO);
     glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
     glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
+    numberOfPoints = splinePoints.size() / 3;
 
     glBindVertexArray(pointsVAO);
     glBindBuffer(GL_ARRAY_BUFFER, pointsVAO);
