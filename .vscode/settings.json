@@ -73,6 +73,7 @@
         "xutility": "cpp",
         "bitset": "cpp",
         "regex": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "complex": "cpp"
     }
 }
