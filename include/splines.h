@@ -15,7 +15,7 @@ struct ControlPoint {
 struct CubicSplineSegment {
     float a, b, c, d;
     float parameterMultiplier;
-    float parameterOffset;
+    float parameterOffset, outputOffset;
 
     CubicSplineSegment(const Eigen::Vector4d &v) {
         a = v[0];
@@ -28,6 +28,8 @@ struct CubicSplineSegment {
 // Spline data
 extern std::vector<glm::vec2> controlPoints;
 extern std::vector<CubicSplineSegment> cubicSpline;
+extern std::vector<CubicSplineSegment> xCubicSpline;
+extern std::vector<CubicSplineSegment> yCubicSpline;
 extern float numberOfPoints;
 
 // GL containers
@@ -36,6 +38,8 @@ extern GLuint splineVAO;
 extern GLuint pointsVBO;
 extern GLuint pointsVAO;
 
-void calculateCubic(std::vector<glm::vec2> points);
 void generatePointsCubic();
+void generatePointsFreeSpaceCubic();
+void calculateCubic(std::vector<glm::vec2> points);
 std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope);
+std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, float startSlope, float endSlope);

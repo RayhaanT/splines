@@ -5,8 +5,11 @@
 
 using namespace Eigen;
 
+//Extern definitions
 std::vector<glm::vec2> controlPoints;
 std::vector<CubicSplineSegment> cubicSpline;
+std::vector<CubicSplineSegment> xCubicSpline;
+std::vector<CubicSplineSegment> yCubicSpline;
 
 void calculateCubic(std::vector<glm::vec2> points)
 {
@@ -36,6 +39,20 @@ void calculateCubic(std::vector<glm::vec2> points)
 
 bool xValueSort(glm::vec2 a, glm::vec2 b) {
     return a.x < b.x;
+}
+
+std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, float startSlope, float endSlope) {
+    std::vector<glm::vec2> xPoints;
+    std::vector<glm::vec2> yPoints;
+    for(int i = 0; i < points.size(); i++) {
+        xPoints.push_back(glm::vec2(i, points[i].x));
+        yPoints.push_back(glm::vec2(i, points[i].y));
+    }
+    
+    std::vector<CubicSplineSegment> xSpline = calculateCubicStitched(xPoints, 1, 1);
+    std::vector<CubicSplineSegment> ySpline = calculateCubicStitched(yPoints, startSlope, endSlope);
+
+    return {xSpline, ySpline};
 }
 
 // Non-paramaterized, non-localized
@@ -88,6 +105,7 @@ std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> po
             float realX2 = points[i + 2].x;
 
             //Match slopes: b(i) + 2c(i)x(i+1) + 3d(i)x^2(i+1) − b(i+1) − 2c(i+1)x(i+1) − 3d(i+1)x^2(i+1) = 0
+            //Matches derivatives of the 2 cubic adjacent cubic functions (velocity)
             // mat(matIndex, matOffset + 1) = 1;
             // mat(matIndex, matOffset + 2) = 2 * x1;
             // mat(matIndex, matOffset + 3) = 3 * x1 * x1;
@@ -105,6 +123,7 @@ std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> po
             matIndex++;
 
             //Match curvature: 2c(i) + 6d(i)x(i+1) − 2c(i+1) − 6d(i+1)x(i+1) = 0
+            //Matches 2nd derivatives of the 2 cubic adjacent cubic functions (acceleration)
             // mat(matIndex, matOffset + 2) = 2;
             // mat(matIndex, matOffset + 3) = 6 * x1;
             // mat(matIndex, secondOffset + 2) = -2;
@@ -141,6 +160,7 @@ std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> po
         Vector4d v = coefficients(seq(i*4, (i*4)+3));
         CubicSplineSegment c(v);
         c.parameterOffset = points[i].x;
+        c.outputOffset = points[i].y;
         c.parameterMultiplier = points[i + 1].x - points[i].x;
         allSegments.push_back(c);
     }

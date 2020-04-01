@@ -89,11 +89,15 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			// calculateCubic(controlPoints);
 			auto start = std::chrono::high_resolution_clock::now();
-			cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
+			// cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
+			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, 0, 0);
+			xCubicSpline = xySplines[0];
+			yCubicSpline = xySplines[1];
 			auto end = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-			generatePointsCubic();
-			std::cout << duration << std::endl;
+			// generatePointsCubic();
+			generatePointsFreeSpaceCubic();
+			// std::cout << duration << std::endl;
 		}
 	}
 }
