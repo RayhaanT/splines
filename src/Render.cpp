@@ -63,13 +63,15 @@ void generatePointsFreeSpaceCubic() {
 
             splinePoints.push_back(0.0f);
         }
-        std::cout << "I: " << i << std::endl;
-        Eigen::Vector4d xCoeffs(xCubicSpline[i].d, xCubicSpline[i].c, xCubicSpline[i].b, xCubicSpline[i].a);
-        Eigen::Vector4d yCoeffs(yCubicSpline[i].d, yCubicSpline[i].c, yCubicSpline[i].b, yCubicSpline[i].a);
-        std::cout << xCoeffs;
-        std::cout << std::endl;
-        std::cout << yCoeffs;
-        std::cout << std::endl;
+
+        //Bad debugging snippet
+        // std::cout << "I: " << i << std::endl;
+        // Eigen::Vector4d xCoeffs(xCubicSpline[i].d, xCubicSpline[i].c, xCubicSpline[i].b, xCubicSpline[i].a);
+        // Eigen::Vector4d yCoeffs(yCubicSpline[i].d, yCubicSpline[i].c, yCubicSpline[i].b, yCubicSpline[i].a);
+        // std::cout << xCoeffs;
+        // std::cout << std::endl;
+        // std::cout << yCoeffs;
+        // std::cout << std::endl;
     }
 
     glBindVertexArray(splineVAO);

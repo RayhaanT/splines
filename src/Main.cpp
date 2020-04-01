@@ -50,11 +50,32 @@ glm::mat4 zoom;
 double zoomScaleFactor = 1;
 const float zoomStep = 0.05f;
 
+glm::mat4 pan;
+glm::vec2 rightMouseRef;
+glm::vec2 panOffset;
+bool rightMousePressed = false;
+
 bool firstPoint = true;
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+}
+
+glm::vec2 screenToWorldCoordinates(glm::vec2 screenPos) {
+	float xpos = screenPos.x;
+	float ypos = screenPos.y;
+	xpos -= dimension / 2;
+	ypos -= dimension / 2;
+	ypos = -ypos;
+	screenPos = glm::vec2(xpos, ypos) * (1.0f / dimension);
+	screenPos *= (float)(1.0f / zoomScaleFactor) * 2.0f;
+	//screenPos = glm::vec3(glm::vec4(screenPos, 0.0f, 0.0f) * pan);
+	return screenPos;
+}
+
+glm::vec2 screenToWorldCoordinates(float x, float y) {
+	return screenToWorldCoordinates(glm::vec2(x, y));
 }
 
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
@@ -65,6 +86,16 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 	else {
 		zoom = glm::scale(zoom, glm::vec3(1.0f - zoomStep));
 		zoomScaleFactor *= (1 - zoomStep);
+	}
+}
+
+void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
+	if(rightMousePressed) {
+		glm::vec2 newMouse = screenToWorldCoordinates(xpos, ypos);
+		glm::vec2 newPan = newMouse - rightMouseRef;
+		panOffset -= newPan;
+		pan = glm::translate(pan, glm::vec3(newPan, 0.0f));
+		rightMouseRef = newMouse;
 	}
 }
 
@@ -79,12 +110,7 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			}
 			double xpos, ypos;
 			glfwGetCursorPos(window, &xpos, &ypos);
-			xpos -= dimension/2;
-			ypos -= dimension/2;
-			ypos = -ypos;
-			xpos /= dimension;
-			ypos /= dimension;
-			controlPoints.push_back(glm::vec2(xpos, ypos) * (float)(1.0f/zoomScaleFactor) * 2.0f);
+			controlPoints.push_back(screenToWorldCoordinates(xpos, ypos) + panOffset);
 			// controlPoints.erase(controlPoints.begin());
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			// calculateCubic(controlPoints);
@@ -98,6 +124,18 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			// generatePointsCubic();
 			generatePointsFreeSpaceCubic();
 			// std::cout << duration << std::endl;
+		}
+	}
+
+	if(button == GLFW_MOUSE_BUTTON_RIGHT) {
+		if (action == GLFW_PRESS) {
+			double xpos, ypos;
+			glfwGetCursorPos(window, &xpos, &ypos);
+			rightMousePressed = true;
+			rightMouseRef = screenToWorldCoordinates(xpos, ypos);
+		}
+		else {
+			rightMousePressed = false;
 		}
 	}
 }
@@ -205,6 +243,7 @@ int main()
 	void mouse_callback(GLFWwindow * window, double xpos, double ypos);
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetCursorPosCallback(window, mouse_callback);
 	glPointSize(8);
 	glLineWidth(3);
 
@@ -233,7 +272,7 @@ int main()
 
 		glm::mat4 model;
 		//Pass matrices to the shader through a uniform
-		setMat4(splineShader, "model", zoom);
+		setMat4(splineShader, "model", zoom * pan);
 
 		setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
 		glBindVertexArray(pointsVAO);
