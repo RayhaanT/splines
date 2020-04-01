@@ -1,6 +1,7 @@
 #include <splines.h>
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <iostream>
 
 GLuint splineVBO;
 GLuint splineVAO;
@@ -10,8 +11,8 @@ GLuint pointsVAO;
 void generatePointsCubic() {
     std::vector<float> splinePoints;
     for(CubicSplineSegment s : cubicSpline) {
-        for(float x = s.lowerBound; x < s.upperBound; x+=0.01) {
-            splinePoints.push_back(x);
+        for(float x = 0; x < 1; x+=0.01) {
+            splinePoints.push_back((x * s.parameterMultiplier) + s.parameterOffset);
             float y = x * x * x * s.d;
             y += x * x * s.c;
             y += x * s.b;

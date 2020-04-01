@@ -10,6 +10,7 @@
 #include <GLFW/stb_image.h>
 #include <vector>
 #include <splines.h>
+#include <chrono>
 ///VBOs Vertex Buffer Objects contain vertex data that is sent to memory in the GPU, vertex attrib calls config bound VBO
 ///VAOs Vertex Array Objects when bound, any vertex attribute calls and attribute configs are stored in VAO
 ///Having multiple VAOs allow storage of multiple VBO configs, before drawing, binding VAO with right config applies to draw
@@ -87,8 +88,12 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			// controlPoints.erase(controlPoints.begin());
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			// calculateCubic(controlPoints);
-			calculateCubicStitched(controlPoints, 0, 0);
+			auto start = std::chrono::high_resolution_clock::now();
+			cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
+			auto end = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 			generatePointsCubic();
+			std::cout << duration << std::endl;
 		}
 	}
 }
@@ -104,7 +109,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	//Create a GLFW Window
-	GLFWwindow *window = glfwCreateWindow(dimension, dimension, "Colors", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(dimension, dimension, "Splines", NULL, NULL);
 	glfwMakeContextCurrent(window);
 
 	//glad init: intializes all OpenGL function pointers
@@ -246,7 +251,7 @@ int main()
 
 		// Draw cube
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
+		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);

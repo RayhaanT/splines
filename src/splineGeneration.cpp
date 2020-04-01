@@ -29,8 +29,8 @@ void calculateCubic(std::vector<glm::vec2> points)
 
     Eigen::Vector4d coefficients = mat.inverse() * y;
     CubicSplineSegment c(coefficients);
-    c.lowerBound = -RANGE;
-    c.upperBound = RANGE;
+    c.parameterMultiplier = 40;
+    c.parameterOffset = -20;
     cubicSpline = {c};
 }
 
@@ -39,7 +39,7 @@ bool xValueSort(glm::vec2 a, glm::vec2 b) {
 }
 
 // Non-paramaterized, non-localized
-void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope) {
+std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope) {
     std::sort(points.begin(), points.end(), xValueSort);
     int numVar = (points.size()-1)*4;
     MatrixXd mat(numVar, numVar);
@@ -47,17 +47,23 @@ void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, flo
     int matIndex = 0;
 
     for(int i = 0; i < points.size() - 1; i++) {
-        float x0 = points[i].x;
-        float x1 = points[i+1].x;
+        float x0 = 0;
+        float x1 = 1;
+        float realX0 = points[i].x;
+        float realX1 = points[i+1].x;
         int matOffset = i * 4;
         int secondOffset = matOffset + 4;
 
         //Starting slope: b + cx + 2dx^2 = s
         if(i == 0) {
+            // mat(matIndex, 1) = 1;
+            // mat(matIndex, 2) = x0;
+            // mat(matIndex, 3) = 2 * x0 * x0;
+            // y(matIndex) = startSlope;
+
+            //Starting slope paramaterized: b = (x1 - x0)s
             mat(matIndex, 1) = 1;
-            mat(matIndex, 2) = x0;
-            mat(matIndex, 3) = 2 * x0 * x0;
-            y(matIndex) = startSlope;
+            y(matIndex) = (realX1-realX0) * startSlope;
             matIndex++;
         }
 
@@ -79,42 +85,65 @@ void calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, flo
 
         //Match slopes and curvature (C1 and C2 continuity)
         if(i < points.size() - 2) {
+            float realX2 = points[i + 2].x;
+
             //Match slopes: b(i) + 2c(i)x(i+1) + 3d(i)x^2(i+1) − b(i+1) − 2c(i+1)x(i+1) − 3d(i+1)x^2(i+1) = 0
+            // mat(matIndex, matOffset + 1) = 1;
+            // mat(matIndex, matOffset + 2) = 2 * x1;
+            // mat(matIndex, matOffset + 3) = 3 * x1 * x1;
+            // mat(matIndex, secondOffset + 1) = -1;
+            // mat(matIndex, secondOffset + 2) = -2 * x1;
+            // mat(matIndex, secondOffset + 3) = -3 * x1 * x1;
+            // y(matIndex) = 0;
+
+            //Match slopes paramaterized: bi + 2ci + 3di - ( (x(i+1) - xi) / (x(i+2) - x(i+1) )b(i+1) = 0
             mat(matIndex, matOffset + 1) = 1;
-            mat(matIndex, matOffset + 2) = 2 * x1;
-            mat(matIndex, matOffset + 3) = 3 * x1 * x1;
-            mat(matIndex, secondOffset + 1) = -1;
-            mat(matIndex, secondOffset + 2) = -2 * x1;
-            mat(matIndex, secondOffset + 3) = -3 * x1 * x1;
+            mat(matIndex, matOffset + 2) = 2;
+            mat(matIndex, matOffset + 3) = 3;
+            mat(matIndex, secondOffset + 1) = -(realX1 - realX0)/(realX2-realX1);
             y(matIndex) = 0;
             matIndex++;
 
             //Match curvature: 2c(i) + 6d(i)x(i+1) − 2c(i+1) − 6d(i+1)x(i+1) = 0
+            // mat(matIndex, matOffset + 2) = 2;
+            // mat(matIndex, matOffset + 3) = 6 * x1;
+            // mat(matIndex, secondOffset + 2) = -2;
+            // mat(matIndex, secondOffset + 3) = -6 * x1;
+            // y(matIndex) = 0;
+
+            //Match curvature paramaterized: 2ci + 6di - 2( (x(i+1) - xi)^2 / (x(i+2) - x(i+1))^2 )c(i+1) = 0
             mat(matIndex, matOffset + 2) = 2;
-            mat(matIndex, matOffset + 3) = 6 * x1;
-            mat(matIndex, secondOffset + 2) = -2;
-            mat(matIndex, secondOffset + 3) = -6 * x1;
+            mat(matIndex, matOffset + 3) = 6;
+            mat(matIndex, secondOffset + 2) = -2 * ( pow(realX1 - realX0, 2) / pow(realX2 - realX1, 2) );
             y(matIndex) = 0;
             matIndex++;
         }
         else {
             //End slope: b + cx + 2dx^2 = s
+            // mat(matIndex, matOffset + 1) = 1;
+            // mat(matIndex, matOffset + 2) = x1;
+            // mat(matIndex, matOffset + 3) = 2 * x1 * x1;
+            // y(matIndex) = endSlope;
+
+            //End slope paramaterized: b + 2c + 3d = (x1 - x0)s
             mat(matIndex, matOffset + 1) = 1;
-            mat(matIndex, matOffset + 2) = x1;
-            mat(matIndex, matOffset + 3) = 2 * x1 * x1;
-            y(matIndex) = endSlope;
+            mat(matIndex, matOffset + 2) = 2;
+            mat(matIndex, matOffset + 3) = 3;
+            y(matIndex) = (realX1 - realX0) * endSlope;
             matIndex++;
         }
     }
 
-    cubicSpline.clear();
+    std::vector<CubicSplineSegment> allSegments;
 
     VectorXd coefficients = mat.inverse() * y;
     for(int i = 0; i < points.size() - 1; i++) {
         Vector4d v = coefficients(seq(i*4, (i*4)+3));
         CubicSplineSegment c(v);
-        c.lowerBound = points[i].x;
-        c.upperBound = points[i + 1].x;
-        cubicSpline.push_back(c);
+        c.parameterOffset = points[i].x;
+        c.parameterMultiplier = points[i + 1].x - points[i].x;
+        allSegments.push_back(c);
     }
+
+    return allSegments;
 }

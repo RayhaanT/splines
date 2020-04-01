@@ -75,6 +75,7 @@
         "regex": "cpp",
         "stack": "cpp",
         "complex": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "set": "cpp"
     }
 }
