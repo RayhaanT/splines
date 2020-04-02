@@ -4,8 +4,10 @@ layout (location = 1) in vec2 aTexCoord;
 
 out vec2 texCoords;
 
+uniform mat4 model;
+
 void main()
 {
-    gl_Position = vec4(aPos, 1);
+    gl_Position = model * vec4(aPos, 1);
     texCoords = aTexCoord;
 }

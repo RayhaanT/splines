@@ -115,6 +115,13 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 		glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
 	}
+	if(glfwGetKey(window, GLFW_KEY_Z)) {
+		controlPoints.erase(controlPoints.end());
+		std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+		xCubicSpline = xySplines[0];
+		yCubicSpline = xySplines[1];
+		generatePointsFreeSpaceCubic();
+	}
 }
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
@@ -235,13 +242,23 @@ int main()
 	glBindVertexArray(textVAO);
 
 	float textVertices[]{
-		//Vertices          //Texture coords
+		//Vertices            //Texture coords
 		-1.0f, -1.0f, 0.0f,   0.0f, 1.0f,
 		-1.0f, -0.8f, 0.0f,   0.0f, 0.0f,
 		0.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
 		0.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
 		-1.0f, -0.8f, 0.0f,   0.0f, 0.0f,
 		0.0f,  -0.8f, 0.0f,   1.0f, 0.0f
+	};
+
+	float squareVertices[] {
+		//Vertices            //Texture coords
+		-1.0f, -1.0f, 0.0f,   0.0f, 1.0f,
+		-1.0f,  1.0f, 0.0f,   0.0f, 0.0f,
+		1.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
+		1.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
+		-1.0f,  1.0f, 0.0f,   0.0f, 0.0f,
+		1.0f,   1.0f, 0.0f,   1.0f, 0.0f
 	};
 
 	//Create a Vertex Buffer Object
@@ -254,6 +271,20 @@ int main()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	//Background data
+	unsigned int backgroundVAO;
+	glGenVertexArrays(1, &backgroundVAO);
+	glBindVertexArray(backgroundVAO);
+	unsigned int backgroundVBO;
+	glGenBuffers(1, &backgroundVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, backgroundVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(squareVertices), squareVertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
 	//Create a Vertex Array Object
@@ -302,12 +333,22 @@ int main()
 
 	Shader("Shaders/VertexTexture.vs", "Shaders/FragmentTexture.fs", textShader);
 	glUseProgram(textShader);
+	unsigned int backgroundShader;
+	Shader("Shaders/VertexTexture.vs", "Shaders/FragmentTexture.fs", backgroundShader);
 
 	setInt(textShader, "text", 0);
-	glActiveTexture(GL_TEXTURE0);
 	loadTexture(initialSlopeText, "textures/ConfiguringInitial.png");
 	loadTexture(finalSlopeText, "textures/ConfiguringFinal.png");
 	loadTexture(generalSlopeText, "textures/ConfiguringSlope.png");
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, initialSlopeText);
+
+	glUseProgram(backgroundShader);
+	setInt(backgroundShader, "text", 1);
+	unsigned int backgroundTexture;
+	loadTexture(backgroundTexture, "textures/VexField.png");
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, backgroundTexture);
 
 	glEnable(GL_DEPTH_TEST);
 	//Set mouse input callback function
@@ -341,6 +382,7 @@ int main()
 
 		if (tabPressed || shiftPressed) {
 			// Draw text
+			glActiveTexture(GL_TEXTURE0);
 			glUseProgram(textShader);
 			glBindVertexArray(textVAO);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -365,6 +407,14 @@ int main()
 		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
 		glDrawArrays(GL_LINE_STRIP, 0, numberOfPoints);
 		// glDrawArrays(GL_POINTS, 0, numberOfPoints);
+
+		//Draw Background
+		glActiveTexture(GL_TEXTURE1);
+		glUseProgram(backgroundShader);
+		setMat4(backgroundShader, "model", zoom * pan);
+		glBindVertexArray(backgroundVAO);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(squareVertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);

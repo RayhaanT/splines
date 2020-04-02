@@ -74,8 +74,6 @@ void generatePointsFreeSpaceCubic() {
         // std::cout << std::endl;
     }
 
-    std::cout << std::endl;
-
     glBindVertexArray(splineVAO);
     glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
     glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
