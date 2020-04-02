@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <iostream>
 #include <OpenGLHeaders/Shader.h>
+#include <OpenGLHeaders/texture.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -32,19 +33,9 @@
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-bool restrictY = true;
 
 const float dimension = 800;
 float numberOfPoints;
-
-//Define offset variables
-float lastX = dimension / 2;
-float lastY = dimension / 2;
-float yaw = -90;
-float pitch = 0;
-bool firstMouse = true;
-float fov = 45.0f;
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 glm::mat4 zoom;
 double zoomScaleFactor = 1;
@@ -56,6 +47,12 @@ glm::vec2 panOffset;
 bool rightMousePressed = false;
 
 bool firstPoint = true;
+bool tabPressed = false;
+bool shiftPressed = false;
+unsigned int textShader = 0;
+unsigned int initialSlopeText; //Texture 0
+unsigned int finalSlopeText;   //Texture 1
+unsigned int generalSlopeText; //Texture 2
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
@@ -89,6 +86,19 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 	}
 }
 
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+	if(glfwGetKey(window, GLFW_KEY_TAB)) {
+		tabPressed = true;
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, finalSlopeText);
+	}
+	else if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+		shiftPressed = true;
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, initialSlopeText);
+	}
+}
+
 void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 	if(rightMousePressed) {
 		glm::vec2 newMouse = screenToWorldCoordinates(xpos, ypos);
@@ -104,6 +114,8 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 	{
 		if (action == GLFW_PRESS)
 		{
+			shiftPressed = false;
+			tabPressed = false;
 			if(firstPoint) {
 				firstPoint = false;
 				controlPoints = std::vector<glm::vec2>();
@@ -168,29 +180,31 @@ int main()
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);	
 	
 	//Create a Vertex Array Object
-	unsigned int VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	unsigned int textVAO;
+	glGenVertexArrays(1, &textVAO);
+	glBindVertexArray(textVAO);
 
-	float vertices[]{
-		//Vertices
-		RANGE, RANGE, 0.0f,
-		RANGE, -RANGE, 0.0f,
-		-RANGE, -RANGE, 0.0f,
-		-RANGE, RANGE, 0.0f,
-		RANGE, RANGE, 0.0f,
-		-RANGE, -RANGE, 0.0f
+	float textVertices[]{
+		//Vertices          //Texture coords
+		-1.0f, -1.0f, 0.0f,   0.0f, 1.0f,
+		-1.0f, -0.8f, 0.0f,   0.0f, 0.0f,
+		0.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
+		0.0f,  -1.0f, 0.0f,   1.0f, 1.0f,
+		-1.0f, -0.8f, 0.0f,   0.0f, 0.0f,
+		0.0f,  -0.8f, 0.0f,   1.0f, 0.0f
 	};
 
 	//Create a Vertex Buffer Object
-	unsigned int VBO;
-	glGenBuffers(1, &VBO);
+	unsigned int textVBO;
+	glGenBuffers(1, &textVBO);
 	//Bind the VBO to the object type and copy its data to the state
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(textVertices), textVertices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
 	//Create a Vertex Array Object
 	glGenVertexArrays(1, &splineVAO);
@@ -233,10 +247,17 @@ int main()
 	glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f);
 
 	unsigned int splineShader = 0;
-	Shader("Shaders/VeShPhong.vs", "Shaders/FrShColour.fs", splineShader);
+	Shader("Shaders/VertexSplines.vs", "Shaders/FragmentSplines.fs", splineShader);
 	glUseProgram(splineShader);
 
-	unsigned int backgroundShader = splineShader;
+	Shader("Shaders/VertexTexture.vs", "Shaders/FragmentTexture.fs", textShader);
+	glUseProgram(textShader);
+
+	setInt(textShader, "text", 0);
+	glActiveTexture(GL_TEXTURE0);
+	loadTexture(initialSlopeText, "textures/ConfiguringInitial.png");
+	loadTexture(finalSlopeText, "textures/ConfiguringFinal.png");
+	loadTexture(generalSlopeText, "textures/ConfiguringSlope.png");
 
 	glEnable(GL_DEPTH_TEST);
 	//Set mouse input callback function
@@ -244,8 +265,11 @@ int main()
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetKeyCallback(window, key_callback);
 	glPointSize(8);
 	glLineWidth(3);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//Render Loop
 	while (!glfwWindowShouldClose(window))
@@ -261,12 +285,14 @@ int main()
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//Change colour over time
-		lightColour.x = sin(glfwGetTime() * 2.0f);
-		lightColour.y = sin(glfwGetTime() * 0.7f);
-		lightColour.z = sin(glfwGetTime() * 1.3f);
+		if (tabPressed || shiftPressed) {
+			glUseProgram(textShader);
+			glBindVertexArray(textVAO);
 
-		glm::vec3 ambientColour = lightColour * glm::vec3(0.5f);
+			// Draw text
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(textVertices));
+		}
 
 		glUseProgram(splineShader);
 
@@ -284,17 +310,6 @@ int main()
 		glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
 		glDrawArrays(GL_LINE_STRIP, 0, numberOfPoints);
 		// glDrawArrays(GL_POINTS, 0, numberOfPoints);
-
-		glBindVertexArray(VAO);
-
-		glUseProgram(backgroundShader);
-
-		setVec3(backgroundShader, "colour", glm::vec3(0.2f));
-		setMat4(backgroundShader, "model", zoom);
-
-		// Draw cube
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(vertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);
