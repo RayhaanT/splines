@@ -57,6 +57,9 @@ unsigned int initialSlopeText; //Texture 0
 unsigned int finalSlopeText;   //Texture 1
 unsigned int generalSlopeText; //Texture 2
 
+float startSlope = 0;
+float endSlope = 0;
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
@@ -136,21 +139,35 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 	{
 		if (action == GLFW_PRESS)
 		{
-			shiftPressed = false;
-			tabPressed = false;
-			if(firstPoint) {
+			if (firstPoint) {
 				firstPoint = false;
 				controlPoints = std::vector<glm::vec2>();
 			}
+
 			double xpos, ypos;
 			glfwGetCursorPos(window, &xpos, &ypos);
-			controlPoints.push_back(screenToWorldCoordinates(xpos, ypos) + panOffset);
+			glm::vec2 gridPos = screenToWorldCoordinates(xpos, ypos) + panOffset;
+
+			if (tabPressed) {
+				glm::vec2 relative = gridPos - controlPoints.back();
+				endSlope = relative.y / relative.x;
+			}
+			else if(shiftPressed) {
+				glm::vec2 relative = gridPos - controlPoints.front();
+				startSlope = relative.y/relative.x;
+			}
+			else {
+				controlPoints.push_back(gridPos);
+			}
+			
+			shiftPressed = false;
+			tabPressed = false;
 			// controlPoints.erase(controlPoints.begin());
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			// calculateCubic(controlPoints);
 			auto start = std::chrono::high_resolution_clock::now();
 			// cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
-			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, 0, 0);
+			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
 			xCubicSpline = xySplines[0];
 			yCubicSpline = xySplines[1];
 			auto end = std::chrono::high_resolution_clock::now();
