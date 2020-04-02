@@ -126,7 +126,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 		rightMouseRef = newMouse;
 	}
 	if(shiftPressed || tabPressed) {
-		glm::vec2 mousePoint = screenToWorldCoordinates(xpos, ypos);
+		glm::vec2 mousePoint = screenToWorldCoordinates(xpos, ypos) + panOffset;
 		slopePoints[3] = mousePoint.x; slopePoints[4] = mousePoint.y;
 		glBindVertexArray(slopeVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
@@ -165,6 +165,10 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			// calculateCubic(controlPoints);
 			auto start = std::chrono::high_resolution_clock::now();
 			// cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
+			// controlPoints = {glm::vec2(-0.54, 0.3375),
+			// glm::vec2(0.0425, 0.36),
+			// glm::vec2(0.0375, -0.115),
+			// glm::vec2(-0.535, -0.175)};
 			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
 			xCubicSpline = xySplines[0];
 			yCubicSpline = xySplines[1];

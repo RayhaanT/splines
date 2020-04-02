@@ -66,24 +66,32 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector
         float endXSlope = endXDerivative * endSlope.x;
         float endYSlope = endYDerivative * endSlope.y;
 
-        xSpline = calculateCubicStitched(xPoints, startXSlope, endXSlope);
-        ySpline = calculateCubicStitched(yPoints, startYSlope, endYSlope);
+        xSpline = calculateCubicStitched(xPoints, startXSlope, endXSlope, false);
+        ySpline = calculateCubicStitched(yPoints, startYSlope, endYSlope, false);
     }
     else {
-        xSpline = calculateCubicStitched(xPoints, 1, 1);
-        ySpline = calculateCubicStitched(yPoints, 1, 1);
+        xSpline = calculateCubicStitched(xPoints, 1, 1, false);
+        ySpline = calculateCubicStitched(yPoints, 1, 1, false);
     }
 
     return {xSpline, ySpline};
 }
 
 // Non-paramaterized, non-localized
-std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope) {
-    std::sort(points.begin(), points.end(), xValueSort);
+std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope, bool linear) {
+    if(linear) {
+        std::sort(points.begin(), points.end(), xValueSort); 
+    }
     int numVar = (points.size()-1)*4;
     MatrixXd mat(numVar, numVar);
     VectorXd y(numVar);
     int matIndex = 0;
+
+    for(int a = 0; a < numVar; a++) {
+        for(int b = 0; b < numVar; b++) {
+            mat(a, b) = 0;
+        }
+    }
 
     for(int i = 0; i < points.size() - 1; i++) {
         float x0 = 0;
