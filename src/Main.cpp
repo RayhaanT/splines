@@ -49,6 +49,9 @@ bool rightMousePressed = false;
 bool firstPoint = true;
 bool tabPressed = false;
 bool shiftPressed = false;
+unsigned int slopeVAO;
+unsigned int slopeVBO;
+float slopePoints[] {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 unsigned int textShader = 0;
 unsigned int initialSlopeText; //Texture 0
 unsigned int finalSlopeText;   //Texture 1
@@ -91,11 +94,23 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 		tabPressed = true;
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, finalSlopeText);
+
+		glm::vec2 lastPoint = controlPoints.back();
+		slopePoints[0] = lastPoint.x; slopePoints[1] = lastPoint.y;
+		glBindVertexArray(slopeVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
 	}
 	else if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
 		shiftPressed = true;
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, initialSlopeText);
+
+		glm::vec2 firstPoint = controlPoints.front();
+		slopePoints[0] = firstPoint.x; slopePoints[1] = firstPoint.y;
+		glBindVertexArray(slopeVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
 	}
 }
 
@@ -106,6 +121,13 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 		panOffset -= newPan;
 		pan = glm::translate(pan, glm::vec3(newPan, 0.0f));
 		rightMouseRef = newMouse;
+	}
+	if(shiftPressed || tabPressed) {
+		glm::vec2 mousePoint = screenToWorldCoordinates(xpos, ypos);
+		slopePoints[3] = mousePoint.x; slopePoints[4] = mousePoint.y;
+		glBindVertexArray(slopeVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
 	}
 }
 
@@ -179,6 +201,15 @@ int main()
 	void framebuffer_size_callback(GLFWwindow * window, int width, int height);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);	
 	
+	//Drawing the line from point to cursor for slope
+	glGenVertexArrays(1, &slopeVAO);
+	glBindVertexArray(slopeVAO);
+	glGenBuffers(1, &slopeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+	glEnableVertexAttribArray(0);
+
 	//Create a Vertex Array Object
 	unsigned int textVAO;
 	glGenVertexArrays(1, &textVAO);
@@ -219,7 +250,7 @@ int main()
 	
 	glGenBuffers(1, &splineVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, splineVBO);
-	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, splinePoints.size() * sizeof(GLfloat), splinePoints.data(), GL_DYNAMIC_DRAW);
 	numberOfPoints = splinePoints.size() / 3;
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
@@ -237,7 +268,7 @@ int main()
 
 	glGenBuffers(1, &pointsVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
-	glBufferData(GL_ARRAY_BUFFER, controlFloats.size() * sizeof(GLfloat), controlFloats.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, controlFloats.size() * sizeof(GLfloat), controlFloats.data(), GL_DYNAMIC_DRAW);
 
 	//Configure vertex data so readable by vertex shader
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
@@ -285,20 +316,25 @@ int main()
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		//Pass matrices to the shader through a uniform
+		glUseProgram(splineShader);
+		setMat4(splineShader, "model", zoom * pan);
+
 		if (tabPressed || shiftPressed) {
+			// Draw text
 			glUseProgram(textShader);
 			glBindVertexArray(textVAO);
-
-			// Draw text
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(textVertices));
+
+			//Draw Slope
+			glUseProgram(splineShader);
+			setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
+			glBindVertexArray(slopeVAO);
+			glDrawArrays(GL_LINE_STRIP, 0, 2);
 		}
 
 		glUseProgram(splineShader);
-
-		glm::mat4 model;
-		//Pass matrices to the shader through a uniform
-		setMat4(splineShader, "model", zoom * pan);
 
 		setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
 		glBindVertexArray(pointsVAO);
