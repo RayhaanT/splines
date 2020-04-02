@@ -41,16 +41,38 @@ bool xValueSort(glm::vec2 a, glm::vec2 b) {
     return a.x < b.x;
 }
 
-std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, float startSlope, float endSlope) {
+std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, glm::vec2 startSlope, glm::vec2 endSlope) {
     std::vector<glm::vec2> xPoints;
     std::vector<glm::vec2> yPoints;
     for(int i = 0; i < points.size(); i++) {
         xPoints.push_back(glm::vec2(i, points[i].x));
         yPoints.push_back(glm::vec2(i, points[i].y));
     }
-    
-    std::vector<CubicSplineSegment> xSpline = calculateCubicStitched(xPoints, 1, 1);
-    std::vector<CubicSplineSegment> ySpline = calculateCubicStitched(yPoints, startSlope, endSlope);
+
+    std::vector<CubicSplineSegment> xSpline;
+    std::vector<CubicSplineSegment> ySpline;
+
+    if(points.size() > 1) {
+        float startXDerivative = 1.0f / (points[1].x - points[0].x);
+        float startYDerivative = 1.0f / (points[1].y - points[0].y);
+        
+        float startXSlope = startXDerivative * startSlope.x;
+        float startYSlope = startYDerivative * startSlope.y;
+
+        int n = points.size() - 1;
+        float endXDerivative = 1.0f / (points[n].x - points[n-1].x);
+        float endYDerivative = 1.0f / (points[n].y - points[n-1].y);
+
+        float endXSlope = endXDerivative * endSlope.x;
+        float endYSlope = endYDerivative * endSlope.y;
+
+        xSpline = calculateCubicStitched(xPoints, startXSlope, endXSlope);
+        ySpline = calculateCubicStitched(yPoints, startYSlope, endYSlope);
+    }
+    else {
+        xSpline = calculateCubicStitched(xPoints, 1, 1);
+        ySpline = calculateCubicStitched(yPoints, 1, 1);
+    }
 
     return {xSpline, ySpline};
 }

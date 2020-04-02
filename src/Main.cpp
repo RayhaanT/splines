@@ -57,8 +57,8 @@ unsigned int initialSlopeText; //Texture 0
 unsigned int finalSlopeText;   //Texture 1
 unsigned int generalSlopeText; //Texture 2
 
-float startSlope = 0;
-float endSlope = 0;
+glm::vec2 startSlope = glm::vec2(0.0f);
+glm::vec2 endSlope = glm::vec2(0.0f);
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
@@ -149,17 +149,15 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			glm::vec2 gridPos = screenToWorldCoordinates(xpos, ypos) + panOffset;
 
 			if (tabPressed) {
-				glm::vec2 relative = gridPos - controlPoints.back();
-				endSlope = relative.y / relative.x;
+				endSlope = gridPos - controlPoints.back();
 			}
 			else if(shiftPressed) {
-				glm::vec2 relative = gridPos - controlPoints.front();
-				startSlope = relative.y/relative.x;
+				startSlope = gridPos - controlPoints.front();
 			}
 			else {
 				controlPoints.push_back(gridPos);
 			}
-			
+
 			shiftPressed = false;
 			tabPressed = false;
 			// controlPoints.erase(controlPoints.begin());

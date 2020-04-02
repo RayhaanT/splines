@@ -42,4 +42,4 @@ void generatePointsCubic();
 void generatePointsFreeSpaceCubic();
 void calculateCubic(std::vector<glm::vec2> points);
 std::vector<CubicSplineSegment> calculateCubicStitched(std::vector<glm::vec2> points, float startSlope, float endSlope);
-std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, float startSlope, float endSlope);
+std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, glm::vec2 startSlope, glm::vec2 endSlope);
