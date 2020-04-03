@@ -50,6 +50,99 @@ float safeDivision(float numerator, float denominator) {
     }
 }
 
+std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std::vector<glm::vec2> points, std::vector<glm::vec2> slopes) {
+    if(points.size() < 2) {
+        return std::vector<std::vector<CubicSplineSegment>>();
+    } 
+    
+    std::vector<glm::vec2> xPoints;
+    std::vector<glm::vec2> yPoints;
+    for (int i = 0; i < points.size(); i++) {
+        xPoints.push_back(glm::vec2(i, points[i].x));
+        yPoints.push_back(glm::vec2(i, points[i].y));
+    }
+
+    std::vector<float> xSlopes;
+    std::vector<float> ySlopes;
+    for(int i = 0; i < points.size() - 1; i++) {
+        float xDerivative = abs(safeDivision(1.0f, points[i + 1].x - points[i].x));
+        float yDerivative = abs(safeDivision(1.0f, points[i + 1].y - points[i].y));
+
+        xSlopes.push_back(xDerivative * slopes[i].x);
+        xSlopes.push_back(xDerivative * slopes[i + 1].x);
+        ySlopes.push_back(yDerivative * slopes[i].y);
+        ySlopes.push_back(yDerivative * slopes[i + 1].y);
+    }
+
+    std::vector<CubicSplineSegment> xSpline;
+    std::vector<CubicSplineSegment> ySpline;
+
+    xSpline = calculateCubicHermite(xPoints, xSlopes);
+    ySpline = calculateCubicHermite(yPoints, ySlopes);
+
+    return {xSpline, ySpline};
+}
+
+std::vector<CubicSplineSegment> calculateCubicHermite(std::vector<glm::vec2> points, std::vector<float> slopes) {
+    int numVar = (points.size()-1)*4;
+    MatrixXd mat(numVar, numVar);
+    VectorXd y(numVar);
+    int matIndex = 0;
+
+    for(int a = 0; a < numVar; a++) {
+        for(int b = 0; b < numVar; b++) {
+            mat(a, b) = 0;
+        }
+    }
+
+    for(int i = 0; i < points.size() - 1; i++) {
+        float x0 = 0;
+        float x1 = 1;
+        int matOffset = i * 4;
+
+        //Complies with first point slope: b + 2cx + 3dx^2 = s (x = 0)
+        mat(matIndex, matOffset + 1) = 1;
+        y(matIndex) = slopes[i * 2];
+        matIndex++;
+
+        //Pass point through point 0: a + bx + cx^2 + dx^3 = y
+        mat(matIndex, matOffset) = 1;
+        mat(matIndex, matOffset + 1) = x0;
+        mat(matIndex, matOffset + 2) = x0 * x0;
+        mat(matIndex, matOffset + 3) = x0 * x0 * x0;
+        y(matIndex) = points[i].y;
+        matIndex++;
+
+        //Pass point through point 1: a + bx + cx^2 + dx^3 = y
+        mat(matIndex, matOffset) = 1;
+        mat(matIndex, matOffset + 1) = x1;
+        mat(matIndex, matOffset + 2) = x1 * x1;
+        mat(matIndex, matOffset + 3) = x1 * x1 * x1;
+        y(matIndex) = points[i + 1].y;
+        matIndex++;
+
+        //Complies with second point slope: b + cx + dx^2 = s (x = 1)
+        mat(matIndex, matOffset + 1) = 1;
+        mat(matIndex, matOffset + 2) = 1;
+        mat(matIndex, matOffset + 3) = 1;
+        y(matIndex) = slopes[i * 2 + 1];
+    }
+
+    std::vector<CubicSplineSegment> allSegments;
+
+    VectorXd coefficients = mat.inverse() * y;
+    for(int i = 0; i < points.size() - 1; i++) {
+        Vector4d v = coefficients(seq(i*4, (i*4)+3));
+        CubicSplineSegment c(v);
+        c.parameterOffset = points[i].x;
+        c.outputOffset = points[i].y;
+        c.parameterMultiplier = points[i + 1].x - points[i].x;
+        allSegments.push_back(c);
+    }
+
+    return allSegments;
+}
+
 std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, glm::vec2 startSlope, glm::vec2 endSlope) {
     std::vector<glm::vec2> xPoints;
     std::vector<glm::vec2> yPoints;
@@ -62,8 +155,8 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector
     std::vector<CubicSplineSegment> ySpline;
 
     if(points.size() > 1) {
-        float startXDerivative = safeDivision(1.0f, (points[1].x - points[0].x));
-        float startYDerivative = safeDivision(1.0f, (points[1].y - points[0].y));
+        float startXDerivative = abs(safeDivision(1.0f, (points[1].x - points[0].x)));
+        float startYDerivative = abs(safeDivision(1.0f, (points[1].y - points[0].y)));
         
         float startXSlope = startXDerivative * startSlope.x;
         float startYSlope = startYDerivative * startSlope.y;
