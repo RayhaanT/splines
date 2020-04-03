@@ -41,6 +41,15 @@ bool xValueSort(glm::vec2 a, glm::vec2 b) {
     return a.x < b.x;
 }
 
+float safeDivision(float numerator, float denominator) {
+    if(denominator == 0) {
+        return 0;
+    }
+    else {
+        return numerator / denominator;
+    }
+}
+
 std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector<glm::vec2> points, glm::vec2 startSlope, glm::vec2 endSlope) {
     std::vector<glm::vec2> xPoints;
     std::vector<glm::vec2> yPoints;
@@ -53,15 +62,15 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector
     std::vector<CubicSplineSegment> ySpline;
 
     if(points.size() > 1) {
-        float startXDerivative = 1.0f / (points[1].x - points[0].x);
-        float startYDerivative = 1.0f / (points[1].y - points[0].y);
+        float startXDerivative = safeDivision(1.0f, (points[1].x - points[0].x));
+        float startYDerivative = safeDivision(1.0f, (points[1].y - points[0].y));
         
         float startXSlope = startXDerivative * startSlope.x;
         float startYSlope = startYDerivative * startSlope.y;
 
         int n = points.size() - 1;
-        float endXDerivative = 1.0f / (points[n].x - points[n-1].x);
-        float endYDerivative = 1.0f / (points[n].y - points[n-1].y);
+        float endXDerivative = safeDivision(1.0f, (points[n].x - points[n-1].x));
+        float endYDerivative = safeDivision(1.0f, (points[n].y - points[n-1].y));
 
         float endXSlope = endXDerivative * endSlope.x;
         float endYSlope = endYDerivative * endSlope.y;
