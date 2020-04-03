@@ -414,7 +414,7 @@ int main()
 		setMat4(backgroundShader, "model", zoom * pan);
 		glBindVertexArray(backgroundVAO);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(squareVertices));
+		glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(squareVertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);

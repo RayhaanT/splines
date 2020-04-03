@@ -69,8 +69,8 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubic(std::vector
         float startYSlope = startYDerivative * startSlope.y;
 
         int n = points.size() - 1;
-        float endXDerivative = safeDivision(1.0f, (points[n].x - points[n-1].x));
-        float endYDerivative = safeDivision(1.0f, (points[n].y - points[n-1].y));
+        float endXDerivative = abs(safeDivision(1.0f, (points[n].x - points[n-1].x)));
+        float endYDerivative = abs(safeDivision(1.0f, (points[n].y - points[n-1].y)));
 
         float endXSlope = endXDerivative * endSlope.x;
         float endYSlope = endYDerivative * endSlope.y;
