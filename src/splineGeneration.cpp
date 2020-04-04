@@ -7,6 +7,7 @@ using namespace Eigen;
 
 //Extern definitions
 std::vector<glm::vec2> controlPoints;
+std::vector<glm::vec2> controlSlopes;
 std::vector<CubicSplineSegment> cubicSpline;
 std::vector<CubicSplineSegment> xCubicSpline;
 std::vector<CubicSplineSegment> yCubicSpline;
@@ -51,20 +52,20 @@ float safeDivision(float numerator, float denominator) {
 }
 
 std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std::vector<glm::vec2> points, std::vector<glm::vec2> slopes) {
-    if(points.size() < 2) {
-        return std::vector<std::vector<CubicSplineSegment>>();
+    if(slopes.size() < 2) {
+        return {std::vector<CubicSplineSegment>(), std::vector<CubicSplineSegment>()};
     } 
     
     std::vector<glm::vec2> xPoints;
     std::vector<glm::vec2> yPoints;
-    for (int i = 0; i < points.size(); i++) {
+    for (int i = 0; i < slopes.size(); i++) {
         xPoints.push_back(glm::vec2(i, points[i].x));
         yPoints.push_back(glm::vec2(i, points[i].y));
     }
 
     std::vector<float> xSlopes;
     std::vector<float> ySlopes;
-    for(int i = 0; i < points.size() - 1; i++) {
+    for(int i = 0; i < slopes.size() - 1; i++) {
         float xDerivative = abs(safeDivision(1.0f, points[i + 1].x - points[i].x));
         float yDerivative = abs(safeDivision(1.0f, points[i + 1].y - points[i].y));
 
@@ -72,6 +73,12 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std:
         xSlopes.push_back(xDerivative * slopes[i + 1].x);
         ySlopes.push_back(yDerivative * slopes[i].y);
         ySlopes.push_back(yDerivative * slopes[i + 1].y);
+    }
+
+    for(int i = 1; i < xSlopes.size() - 2; i+=2) {
+        glm::vec2 v1 = glm::normalize(glm::vec2(xSlopes[i], ySlopes[i]));
+        glm::vec2 v2 = glm::normalize(glm::vec2(xSlopes[i + 1], ySlopes[i + 1]));
+        std::cout << "1: " << v1.x << " " <<v1.y << " 2: " << v2.x << " " << v2.y << std::endl;
     }
 
     std::vector<CubicSplineSegment> xSpline;
@@ -84,56 +91,49 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std:
 }
 
 std::vector<CubicSplineSegment> calculateCubicHermite(std::vector<glm::vec2> points, std::vector<float> slopes) {
-    int numVar = (points.size()-1)*4;
-    MatrixXd mat(numVar, numVar);
-    VectorXd y(numVar);
-    int matIndex = 0;
+    Matrix4d mat;
+    Vector4d y;
 
-    for(int a = 0; a < numVar; a++) {
-        for(int b = 0; b < numVar; b++) {
+    for(int a = 0; a < 4; a++) {
+        for(int b = 0; b < 4; b++) {
             mat(a, b) = 0;
         }
     }
 
-    for(int i = 0; i < points.size() - 1; i++) {
-        float x0 = 0;
-        float x1 = 1;
-        int matOffset = i * 4;
+    //X is always 0 for first point and 1 for second due to paramaterization
+    //Complies with first point slope: b + 2cx + 3dx^2 = s (x = 0)
+    mat(0, 1) = 1;
 
-        //Complies with first point slope: b + 2cx + 3dx^2 = s (x = 0)
-        mat(matIndex, matOffset + 1) = 1;
-        y(matIndex) = slopes[i * 2];
-        matIndex++;
+    //Pass point through point 0: a + bx + cx^2 + dx^3 = y (x = 0)
+    mat(1, 0) = 1;
 
-        //Pass point through point 0: a + bx + cx^2 + dx^3 = y
-        mat(matIndex, matOffset) = 1;
-        mat(matIndex, matOffset + 1) = x0;
-        mat(matIndex, matOffset + 2) = x0 * x0;
-        mat(matIndex, matOffset + 3) = x0 * x0 * x0;
-        y(matIndex) = points[i].y;
-        matIndex++;
+    //Pass point through point 1: a + bx + cx^2 + dx^3 = y (x = 1)
+    mat(2, 0) = 1;
+    mat(2, 1) = 1;
+    mat(2, 2) = 1;
+    mat(2, 3) = 1;
 
-        //Pass point through point 1: a + bx + cx^2 + dx^3 = y
-        mat(matIndex, matOffset) = 1;
-        mat(matIndex, matOffset + 1) = x1;
-        mat(matIndex, matOffset + 2) = x1 * x1;
-        mat(matIndex, matOffset + 3) = x1 * x1 * x1;
-        y(matIndex) = points[i + 1].y;
-        matIndex++;
+    //Complies with second point slope: b + 2cx + 3dx^2 = s (x = 1)
+    mat(3, 1) = 1;
+    mat(3, 2) = 2;
+    mat(3, 3) = 3;
 
-        //Complies with second point slope: b + cx + dx^2 = s (x = 1)
-        mat(matIndex, matOffset + 1) = 1;
-        mat(matIndex, matOffset + 2) = 1;
-        mat(matIndex, matOffset + 3) = 1;
-        y(matIndex) = slopes[i * 2 + 1];
-    }
+    Matrix4d invMat = mat.inverse();
 
     std::vector<CubicSplineSegment> allSegments;
 
-    VectorXd coefficients = mat.inverse() * y;
     for(int i = 0; i < points.size() - 1; i++) {
-        Vector4d v = coefficients(seq(i*4, (i*4)+3));
-        CubicSplineSegment c(v);
+        //First slope
+        y(0) = slopes[i * 2];
+        //First point
+        y(1) = points[i].y;
+        //Second point
+        y(2) = points[i + 1].y;
+        //Second slope
+        y(3) = slopes[i * 2 + 1];
+
+        Vector4d coefficients = mat.inverse() * y;
+        CubicSplineSegment c(coefficients);
         c.parameterOffset = points[i].x;
         c.outputOffset = points[i].y;
         c.parameterMultiplier = points[i + 1].x - points[i].x;

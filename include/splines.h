@@ -27,6 +27,7 @@ struct CubicSplineSegment {
 
 // Spline data
 extern std::vector<glm::vec2> controlPoints;
+extern std::vector<glm::vec2> controlSlopes;
 extern std::vector<CubicSplineSegment> cubicSpline;
 extern std::vector<CubicSplineSegment> xCubicSpline;
 extern std::vector<CubicSplineSegment> yCubicSpline;

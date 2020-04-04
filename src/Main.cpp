@@ -60,6 +60,8 @@ unsigned int generalSlopeText; //Texture 2
 glm::vec2 startSlope = glm::vec2(0.0f);
 glm::vec2 endSlope = glm::vec2(0.0f);
 
+bool configureSlope = false;
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
@@ -117,7 +119,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 	}
 	if(glfwGetKey(window, GLFW_KEY_Z)) {
 		controlPoints.erase(controlPoints.end());
-		std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+		controlSlopes.erase(controlSlopes.end());
+		// std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+		std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubicHermite(controlPoints, controlSlopes);
 		xCubicSpline = xySplines[0];
 		yCubicSpline = xySplines[1];
 		generatePointsFreeSpaceCubic();
@@ -132,7 +136,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 		pan = glm::translate(pan, glm::vec3(newPan, 0.0f));
 		rightMouseRef = newMouse;
 	}
-	if(shiftPressed || tabPressed) {
+	if(shiftPressed || tabPressed || configureSlope) {
 		glm::vec2 mousePoint = screenToWorldCoordinates(xpos, ypos) + panOffset;
 		slopePoints[3] = mousePoint.x; slopePoints[4] = mousePoint.y;
 		glBindVertexArray(slopeVAO);
@@ -155,34 +159,54 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			glfwGetCursorPos(window, &xpos, &ypos);
 			glm::vec2 gridPos = screenToWorldCoordinates(xpos, ypos) + panOffset;
 
-			if (tabPressed) {
-				endSlope = gridPos - controlPoints.back();
-			}
-			else if(shiftPressed) {
-				startSlope = gridPos - controlPoints.front();
-			}
-			else {
-				controlPoints.push_back(gridPos);
-			}
+			// if (tabPressed) {
+			// 	endSlope = gridPos - controlPoints.back();
+			// }
+			// else if(shiftPressed) {
+			// 	startSlope = gridPos - controlPoints.front();
+			// }
+			// else {
+			// 	controlPoints.push_back(gridPos);
+			// }
+			// shiftPressed = false;
+			// tabPressed = false;
 
-			shiftPressed = false;
-			tabPressed = false;
 			// controlPoints.erase(controlPoints.begin());
 			// controlPoints = {glm::vec2(-1, 2), glm::vec2(0, 0), glm::vec2(1, -2), glm::vec2(2, 0)};
 			// calculateCubic(controlPoints);
-			auto start = std::chrono::high_resolution_clock::now();
 			// cubicSpline = calculateCubicStitched(controlPoints, 0, 0);
 			// controlPoints = {glm::vec2(-0.54, 0.3375),
 			// glm::vec2(0.0425, 0.36),
 			// glm::vec2(0.0375, -0.115),
 			// glm::vec2(-0.535, -0.175)};
-			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+			if(!configureSlope) {
+				controlPoints.push_back(gridPos);
+				configureSlope = true;
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, generalSlopeText);
+
+				glm::vec2 lastPoint = gridPos;
+				slopePoints[0] = lastPoint.x; slopePoints[1] = lastPoint.y;
+				slopePoints[2] = lastPoint.x; slopePoints[3] = lastPoint.y;
+				glBindVertexArray(slopeVAO);
+				glBindBuffer(GL_ARRAY_BUFFER, slopeVBO);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(slopePoints), slopePoints, GL_DYNAMIC_DRAW);
+			}
+			else {
+				configureSlope = false;
+				controlSlopes.push_back(gridPos - controlPoints.back());
+				// std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+			}
+			auto start = std::chrono::high_resolution_clock::now();
+			// std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
+			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubicHermite(controlPoints, controlSlopes);
 			xCubicSpline = xySplines[0];
 			yCubicSpline = xySplines[1];
 			auto end = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-			// generatePointsCubic();
 			generatePointsFreeSpaceCubic();
+			// generatePointsCubic();
 			// std::cout << duration << std::endl;
 		}
 	}
@@ -380,7 +404,7 @@ int main()
 		glUseProgram(splineShader);
 		setMat4(splineShader, "model", zoom * pan);
 
-		if (tabPressed || shiftPressed) {
+		if (tabPressed || shiftPressed || configureSlope) {
 			// Draw text
 			glActiveTexture(GL_TEXTURE0);
 			glUseProgram(textShader);
@@ -400,7 +424,7 @@ int main()
 		setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
 		glBindVertexArray(pointsVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
-		glDrawArrays(GL_POINTS, 0, controlPoints.size());
+		// glDrawArrays(GL_POINTS, 0, controlPoints.size());
 
 		setVec3(splineShader, "colour", glm::vec3(1.0f));
 		glBindVertexArray(splineVAO);
