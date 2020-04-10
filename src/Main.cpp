@@ -201,10 +201,12 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 			auto start = std::chrono::high_resolution_clock::now();
 			// std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubic(controlPoints, startSlope, endSlope);
 			std::vector<std::vector<CubicSplineSegment>> xySplines = calculateFreeSpaceCubicHermite(controlPoints, controlSlopes);
+			// cubicSpline = calculateCubicHermite1Dimensional(controlPoints, controlSlopes);
 			xCubicSpline = xySplines[0];
 			yCubicSpline = xySplines[1];
 			auto end = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
 			generatePointsFreeSpaceCubic();
 			// generatePointsCubic();
 			// std::cout << duration << std::endl;
@@ -424,7 +426,7 @@ int main()
 		setVec3(splineShader, "colour", glm::vec3(1.0f, 0.0f, 0.0f));
 		glBindVertexArray(pointsVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
-		// glDrawArrays(GL_POINTS, 0, controlPoints.size());
+		glDrawArrays(GL_POINTS, 0, controlPoints.size() + debugPoints.size());
 
 		setVec3(splineShader, "colour", glm::vec3(1.0f));
 		glBindVertexArray(splineVAO);
@@ -438,7 +440,7 @@ int main()
 		setMat4(backgroundShader, "model", zoom * pan);
 		glBindVertexArray(backgroundVAO);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		// glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(squareVertices));
+		glDrawArrays(GL_TRIANGLES, 0, ARRAY_SIZE(squareVertices));
 
 		//Swap buffer and poll IO events
 		glfwSwapBuffers(window);

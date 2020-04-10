@@ -66,19 +66,25 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std:
     std::vector<float> xSlopes;
     std::vector<float> ySlopes;
     for(int i = 0; i < slopes.size() - 1; i++) {
-        float xDerivative = abs(safeDivision(1.0f, points[i + 1].x - points[i].x));
-        float yDerivative = abs(safeDivision(1.0f, points[i + 1].y - points[i].y));
+        // float xDerivative = abs(safeDivision(1.0f, points[i + 1].x - points[i].x));
+        // float yDerivative = abs(safeDivision(1.0f, points[i + 1].y - points[i].y));
+        // float xDerivative = abs(points[i + 1].x - points[i].x);
+        // float yDerivative = abs(points[i + 1].y - points[i].y);
+        float xDerivative = 1.0f;
+        float yDerivative = 1.0f;
+
+        // Debugging
+        // glm::vec2 slope1 = glm::vec2(slopes[i].x * xDerivative, yDerivative * slopes[i].y);
+        // glm::vec2 slope2 = glm::vec2(slopes[i + 1].x * xDerivative, yDerivative * slopes[i + 1].y);
+        // std::cout << "1 | X: " << slope1.x << " Y: " << slope1.y << std::endl;
+        // std::cout << "2 | X: " << slope2.x << " Y: " << slope2.y << std::endl << std::endl;
+        // debugPoints.push_back(slope1 + points[i]);
+        // debugPoints.push_back(slope2 + points[i + 1]);
 
         xSlopes.push_back(xDerivative * slopes[i].x);
         xSlopes.push_back(xDerivative * slopes[i + 1].x);
         ySlopes.push_back(yDerivative * slopes[i].y);
         ySlopes.push_back(yDerivative * slopes[i + 1].y);
-    }
-
-    for(int i = 1; i < xSlopes.size() - 2; i+=2) {
-        glm::vec2 v1 = glm::normalize(glm::vec2(xSlopes[i], ySlopes[i]));
-        glm::vec2 v2 = glm::normalize(glm::vec2(xSlopes[i + 1], ySlopes[i + 1]));
-        std::cout << "1: " << v1.x << " " <<v1.y << " 2: " << v2.x << " " << v2.y << std::endl;
     }
 
     std::vector<CubicSplineSegment> xSpline;
@@ -88,6 +94,25 @@ std::vector<std::vector<CubicSplineSegment>> calculateFreeSpaceCubicHermite(std:
     ySpline = calculateCubicHermite(yPoints, ySlopes);
 
     return {xSpline, ySpline};
+}
+
+//Experimental mode meant to test slope correction
+//Not built for actual use, buggy
+std::vector<CubicSplineSegment> calculateCubicHermite1Dimensional(std::vector<glm::vec2> points, std::vector<glm::vec2> slopes) {
+    if (slopes.size() < 2) {
+        return std::vector<CubicSplineSegment>();
+    }
+
+    std::vector<float> fSlopes;
+    for(int i = 0; i < slopes.size() - 1; i++) {
+        float deriv = abs(points[i].x - points[i+1].x);
+        fSlopes.push_back(slopes[i].y / slopes[i].x * deriv);
+        fSlopes.push_back(slopes[i + 1].y / slopes[i + 1].x * deriv);
+    }
+
+    std::vector<CubicSplineSegment> ySpline;
+    ySpline = calculateCubicHermite(points, fSlopes);
+    return ySpline;
 }
 
 std::vector<CubicSplineSegment> calculateCubicHermite(std::vector<glm::vec2> points, std::vector<float> slopes) {

@@ -8,8 +8,15 @@ GLuint splineVAO;
 GLuint pointsVBO;
 GLuint pointsVAO;
 
+std::vector<glm::vec2> debugPoints;
+
 void generateControlPointVertices() {
     std::vector<float> controlFloats;
+    for (glm::vec2 v : debugPoints) {
+        controlFloats.push_back(v.x);
+        controlFloats.push_back(v.y);
+        controlFloats.push_back(0.0f);
+    }
     for (glm::vec2 v : controlPoints) {
         controlFloats.push_back(v.x);
         controlFloats.push_back(v.y);
